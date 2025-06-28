@@ -8,6 +8,9 @@ A Retrieval-Augmented Generation (RAG) application that allows users to upload l
 - Answers cite page numbers or text snippets from the PDF
 - Local, privacy-friendly vector search (ChromaDB)
 - FastAPI backend, React frontend, Dockerized stack
+- Real-time chat streaming via WebSocket (`/api/v1/chat/stream`)
+- Modular, production-grade backend with JWT authentication
+- All request/response models in `backend/app/models/`
 
 ## Quickstart (Local)
 
@@ -43,6 +46,13 @@ docker-compose up --build
 ```
 chat-with-pdf/
 ├── backend/           # FastAPI backend
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── endpoints/  # Modular API routes (REST & WebSocket)
+│   │   ├── models/         # All Pydantic models (REST & WebSocket)
+│   │   ├── services/       # PDF, vector, LLM, RAG logic
+│   │   ├── utils/          # Chunking, citations, etc.
+│   │   └── main.py         # FastAPI app entrypoint
 ├── frontend/          # React frontend
 ├── docker-compose.yml # Orchestration
 ├── README.md
@@ -57,11 +67,31 @@ Create a `.env` file in `backend/` (see `.env.example`):
 ```
 GROQ_API_KEY=your-groq-api-key-here
 GROQ_API_BASE=https://api.groq.com/v1
+JWT_SECRET=your-jwt-secret
 ```
 - `GROQ_API_KEY`: Your Groq API key for Llama-3.1-70B-Versatile.
 - `GROQ_API_BASE`: (Optional) Override for Groq API base URL.
+- `JWT_SECRET`: Secret for JWT authentication (required for all chat/conversation endpoints).
 
-The backend will automatically load these variables for LLM integration.
+The backend will automatically load these variables for LLM and authentication integration.
+
+## API Overview
+
+### REST Endpoints
+- `POST /api/v1/documents/upload` - PDF upload and processing
+- `GET /api/v1/documents` - List uploaded documents
+- `DELETE /api/v1/documents/{document_id}` - Remove document
+- `POST /api/v1/chat/message` - Multi-turn conversation
+- `POST /api/v1/chat/deep-query` - Single deep-dive question
+- `GET /api/v1/conversations/{conversation_id}` - Get conversation history
+- `DELETE /api/v1/conversations/{conversation_id}` - Reset conversation
+- `GET /api/v1/health` - Health check
+
+### WebSocket Endpoints
+- `WS /api/v1/chat/stream` - Real-time chat streaming (token-by-token)
+
+### Models
+- All request/response models are in `backend/app/models/` (REST and WebSocket)
 
 ## Citation & Grounding
 - All answers include page numbers and/or text snippets from the PDF for transparency.

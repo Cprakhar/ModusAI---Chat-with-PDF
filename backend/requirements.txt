@@ -3,3 +3,7 @@ pdfplumber
 chromadb
 sentence_transformers
 nltk
+fastapi
+pydantic
+uvicorn
+pyjwt
