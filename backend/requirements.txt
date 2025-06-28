@@ -1,2 +1,5 @@
 fitz
 pdfplumber
+chromadb
+sentence_transformers
+nltk

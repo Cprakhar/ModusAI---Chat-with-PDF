@@ -51,7 +51,17 @@ chat-with-pdf/
 ```
 
 ## Environment Variables
-- Copy `backend/.env.example` to `backend/.env` and fill in required values (API keys, etc).
+
+Create a `.env` file in `backend/` (see `.env.example`):
+
+```
+GROQ_API_KEY=your-groq-api-key-here
+GROQ_API_BASE=https://api.groq.com/v1
+```
+- `GROQ_API_KEY`: Your Groq API key for Llama-3.1-70B-Versatile.
+- `GROQ_API_BASE`: (Optional) Override for Groq API base URL.
+
+The backend will automatically load these variables for LLM integration.
 
 ## Citation & Grounding
 - All answers include page numbers and/or text snippets from the PDF for transparency.
