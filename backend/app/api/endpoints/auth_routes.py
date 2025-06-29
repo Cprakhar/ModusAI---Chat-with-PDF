@@ -73,7 +73,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-@auth_router.post("/auth/register", response_model=UserOut)
+@auth_router.post("/auth/register", response_model=TokenResponse)
 def register(user: UserCreate):
     if get_user_by_username(user.username):
         raise HTTPException(status_code=400, detail="Username already registered")
@@ -82,7 +82,12 @@ def register(user: UserCreate):
     db_user = create_user(user.username, user.email, user.password)
     if not db_user:
         raise HTTPException(status_code=400, detail="Registration failed")
-    return UserOut(id=db_user["id"], username=db_user["username"], email=db_user["email"])
+    token = create_access_token({
+        "user_id": db_user["id"],
+        "username": db_user["username"],
+        "email": db_user["email"]
+    })
+    return TokenResponse(access_token=token)
 
 @auth_router.post("/auth/login", response_model=TokenResponse)
 def login(user: UserLogin):

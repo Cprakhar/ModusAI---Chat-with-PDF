@@ -10,7 +10,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -43,6 +42,7 @@ venv.bak/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.sh
 
 # Node.js
 node_modules/
@@ -147,3 +147,7 @@ sample_docs/
 # Markdown files
 roadmap.md
 task.md
+ui.md
+
+# Next.js specific
+next-env.d.ts

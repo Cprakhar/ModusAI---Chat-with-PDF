@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 28 28 30; /* #1C1C1E */
+    --foreground: 255 255 255;
+    --card: 35 35 38; /* #232326 */
+    --card-foreground: 255 255 255;
+    --popover: 44 44 46; /* #2C2C2E */
+    --popover-foreground: 255 255 255;
+    --primary: 255 176 32; /* #FFB020 */
+    --primary-foreground: 0 0 0;
+    --secondary: 44 44 46; /* #2C2C2E */
+    --secondary-foreground: 255 255 255;
+    --muted: 44 44 46; /* #2C2C2E */
+    --muted-foreground: 160 160 160; /* #A0A0A0 */
+    --accent: 255 215 0; /* #FFD700 */
+    --accent-foreground: 0 0 0;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --border: 75 85 99; /* gray-600 */
+    --input: 44 44 46; /* #2C2C2E */
+    --ring: 255 176 32; /* #FFB020 */
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1c1c1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2c2c2e;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3c3c3e;
+}
+
+/* Animation for loading dots */
+@keyframes bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
