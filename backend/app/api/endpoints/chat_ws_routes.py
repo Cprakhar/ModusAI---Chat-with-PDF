@@ -1,11 +1,11 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
 import logging
 from app.services.vector_store import VectorStore
 from app.services.llm_client import LLMClient
 from app.services.rag_engine import RAGEngine
 from app.models.conversation import ConversationSession
 from app.utils.citations import extract_citations_from_chunks
-from .auth_utils import get_token_from_header
+from app.utils.deps import get_current_user
 import jwt
 import os
 
@@ -27,16 +27,17 @@ async def chat_stream(
     websocket: WebSocket,
     conversation_id: str = Query(...),
     message: str = Query(...),
-    token: str = Query(...)
+    token: str = Query(...),
+    user: dict = Depends(get_current_user)
 ):
     await websocket.accept()
-    user_id = verify_user_jwt(token)
+    user_id = user["payload"].get("user_id")
     if not user_id:
         await websocket.send_json({"error": "Invalid or missing token"})
         await websocket.close()
         return
     try:
-        session = ConversationSession.load(conversation_id, user_token=token)
+        session = ConversationSession.load(conversation_id, user_token=user["token"])
         if not session:
             await websocket.send_json({"error": "Conversation not found"})
             await websocket.close()
@@ -61,7 +62,7 @@ async def chat_stream(
             await websocket.send_json({"token": full_response})
         # Save assistant response
         session.add_message("assistant", full_response)
-        session.save(user_token=token)
+        session.save(user_token=user["token"])
         citations = [c.to_dict() for c in extract_citations_from_chunks(retrieved, full_response)]
         await websocket.send_json({
             "citations": citations,

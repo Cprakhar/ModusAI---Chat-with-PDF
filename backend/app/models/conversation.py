@@ -5,8 +5,8 @@ import os
 import sqlite3
 import jwt  # PyJWT library for JWT decoding
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "your-secret-key")
-JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
+JWT_SECRET = os.environ.get("JWT_SECRET")
+JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM")
 
 def verify_user_jwt(token: str) -> Optional[str]:
     """
@@ -43,7 +43,7 @@ class ConversationSession:
         if not user_token:
             raise PermissionError("Missing authentication token.")
         token_user_id = verify_user_jwt(user_token)
-        if not token_user_id or token_user_id != user_id:
+        if not token_user_id or str(token_user_id) != str(user_id):
             raise PermissionError("Authentication failed for user_id: {}".format(user_id))
         self.session_id = session_id or str(uuid.uuid4())
         self.user_id = user_id
@@ -97,7 +97,11 @@ class ConversationSession:
 
     @staticmethod
     def _get_db_path():
-        return os.path.join(os.path.dirname(__file__), "conversations.db")
+        # Use a central db directory for all .db files
+        backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+        db_dir = os.path.join(backend_dir, 'db')
+        os.makedirs(db_dir, exist_ok=True)
+        return os.path.join(db_dir, 'conversations.db')
 
     @staticmethod
     def _init_db():
@@ -127,7 +131,7 @@ class ConversationSession:
         if not user_token:
             raise PermissionError("Missing authentication token.")
         token_user_id = verify_user_jwt(user_token)
-        if not token_user_id or token_user_id != self.user_id:
+        if not token_user_id or str(token_user_id) != str(self.user_id):
             raise PermissionError("Authentication failed for user_id: {}".format(self.user_id))
         self._init_db()
         db_path = self._get_db_path()
@@ -159,9 +163,11 @@ class ConversationSession:
             c = conn.cursor()
             c.execute('SELECT session_id, user_id, document_id, parent_session_id, created_at, updated_at, summary FROM sessions WHERE session_id = ?', (session_id,))
             row = c.fetchone()
+            db_user_id = row[1] if row else None
             if not row:
                 return None
-            if row[1] != token_user_id:
+            # Always compare as strings
+            if str(db_user_id) != str(token_user_id):
                 raise PermissionError(f"User {token_user_id} not authorized for session {session_id}")
             session = ConversationSession(
                 user_id=row[1],

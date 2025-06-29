@@ -1,6 +1,7 @@
-import fitz  # PyMuPDF
+import fitz
 import pdfplumber
-from typing import List, Dict, Any, Optional
+import uuid
+from typing import List, Dict, Any
 
 class PDFTextExtractor:
     """
@@ -117,11 +118,19 @@ class PDFTextExtractor:
         page_count = metadata.get('page_count', len(structured_text_pages))
         document = []
         for i in range(page_count):
+            # Gather all text from blocks for this page
+            block_texts = [block["text"] for block in structured_text_pages[i]["blocks"] if "text" in block]
+            page_text = " ".join(block_texts)
+            chunk_id = f"{metadata.get('document_id', str(uuid.uuid4()))}_page_{i+1}"
+            doc_id = metadata.get("document_id") or self.file_path.split("/")[-1].split(".")[0]
             page_data = {
+                "chunk_id": chunk_id,
                 "page": i + 1,
+                "text": page_text,
                 "blocks": structured_text_pages[i]["blocks"] if i < len(structured_text_pages) else [],
                 "tables": table_pages[i]["tables"] if i < len(table_pages) else [],
                 "images": image_pages[i]["images"] if i < len(image_pages) else [],
+                "metadata": {**{k: v for k, v in metadata.items() if v is not None}, "document_id": doc_id}
             }
             document.append(page_data)
         return {
@@ -131,12 +140,3 @@ class PDFTextExtractor:
 
     def close(self):
         self.doc.close()
-
-# Example usage:
-# extractor = PDFTextExtractor("/path/to/file.pdf")
-# pages = extractor.extract_text_by_page()
-# tables = extractor.extract_tables_by_page()
-# metadata = extractor.extract_metadata()
-# images = extractor.extract_images_by_page()
-# document = extractor.preprocess_document()
-# extractor.close()

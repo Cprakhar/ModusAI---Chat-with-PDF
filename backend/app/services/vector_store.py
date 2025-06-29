@@ -1,9 +1,7 @@
 import chromadb
 from chromadb import Settings
-from chromadb.utils import embedding_functions
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any, Optional
-import os
 import re
 
 class VectorStore:
@@ -46,10 +44,12 @@ class VectorStore:
     def query(self, collection_name: str, query_text: str, n_results: int = 5, filters: Optional[Dict[str, Any]] = None, similarity_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
         collection = self.get_or_create_collection(collection_name)
         query_embedding = self.embedder.encode([query_text], show_progress_bar=False, convert_to_numpy=True).tolist()
+        # ChromaDB expects None, not empty dict, for no filters
+        chroma_filters = filters if filters else None
         results = collection.query(
             query_embeddings=query_embedding,
             n_results=n_results * 2,  # get more for threshold filtering
-            where=filters or {}
+            where=chroma_filters
         )
         # Optionally filter by similarity threshold
         scored_results = []
@@ -71,7 +71,8 @@ class VectorStore:
         Returns top n_results with the most keyword overlap.
         """
         collection = self.get_or_create_collection(collection_name)
-        # Get all documents and metadatas
+        # ChromaDB expects None, not empty dict, for no filters
+        chroma_filters = filters if filters else None
         all_docs = collection.get()
         query_keywords = set(re.findall(r'\w+', query_text.lower()))
         scored = []
@@ -92,8 +93,10 @@ class VectorStore:
         """
         Hybrid search: combine semantic and keyword search, re-rank by combined score.
         """
-        semantic_results = self.query(collection_name, query_text, n_results * 2, filters, similarity_threshold)
-        keyword_results = self.keyword_search(collection_name, query_text, n_results * 2, filters)
+        # ChromaDB expects None, not empty dict, for no filters
+        chroma_filters = filters if filters else None
+        semantic_results = self.query(collection_name, query_text, n_results * 2, chroma_filters, similarity_threshold)
+        keyword_results = self.keyword_search(collection_name, query_text, n_results * 2, chroma_filters)
         # Build a dict for fast lookup
         keyword_scores = {r['id']: r['keyword_score'] for r in keyword_results}
         # Combine: boost semantic results with keyword overlap

@@ -1,9 +1,13 @@
-fitz
+pymupdf
+python-multipart
 pdfplumber
 chromadb
 sentence_transformers
 nltk
 fastapi
-pydantic
+pydantic[email]
 uvicorn
 pyjwt
+slowapi
+passlib>=1.7.4
+bcrypt==4.0.1

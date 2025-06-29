@@ -1,7 +1,6 @@
 from typing import List, Dict, Any, Optional
 from .vector_store import VectorStore
 import re
-import nltk
 from nltk.corpus import wordnet
 from nltk.stem import WordNetLemmatizer
 
@@ -15,6 +14,20 @@ class RAGEngine:
         initial_results = self.vector_store.hybrid_query(
             self.collection_name, query, n_results=n_results*2, filters=filters, similarity_threshold=similarity_threshold
         )
+        # Always include the first chunk (likely to contain the name/header)
+        collection = self.vector_store.get_or_create_collection(self.collection_name)
+        all_docs = collection.get()
+        if all_docs['documents']:
+            first_chunk = {
+                'id': all_docs['ids'][0],
+                'text': all_docs['documents'][0],
+                'metadata': all_docs['metadatas'][0],
+                'hybrid_score': 1000,  # artificially high to ensure inclusion
+                'context_score': 1000
+            }
+            # Only add if not already present
+            if not any(c['id'] == first_chunk['id'] for c in initial_results):
+                initial_results = [first_chunk] + initial_results
         # Re-rank: prioritize chunks with more query keyword overlap
         query_keywords = set(re.findall(r'\w+', query.lower()))
         for r in initial_results:

@@ -3,6 +3,7 @@ from typing import List
 
 class DocumentUploadResponse(BaseModel):
     document_id: str
+    conversation_id: str
     message: str
 
 class DocumentListResponse(BaseModel):

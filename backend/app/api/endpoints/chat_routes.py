@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, Header
+from fastapi import APIRouter, Body, Depends, HTTPException
 import logging
 from app.services.vector_store import VectorStore
 from app.services.llm_client import LLMClient
@@ -6,7 +6,7 @@ from app.services.rag_engine import RAGEngine
 from app.models.conversation import ConversationSession
 from app.utils.citations import extract_citations_from_chunks
 from app.models import ChatMessageRequest, ChatMessageResponse, DeepQueryRequest, DeepQueryResponse, CitationModel, ErrorResponse
-from .auth_utils import get_token_from_header
+from app.utils.deps import get_current_user
 
 logger = logging.getLogger("chat_with_pdf_api")
 chat_router = APIRouter()
@@ -22,9 +22,9 @@ def chat_message(
     req: ChatMessageRequest = Body(...),
     vector_store: VectorStore = Depends(get_vector_store),
     llm_client: LLMClient = Depends(get_llm_client),
-    authorization: str = Header(...)
+    user: dict = Depends(get_current_user)
 ):
-    user_token = get_token_from_header(authorization)
+    # user is the JWT payload, use user info directly
     if not req.conversation_id or not req.message or not req.message.strip():
         logger.warning(f"Chat message rejected: missing conversation_id or empty message")
         raise HTTPException(status_code=400, detail="conversation_id and non-empty message are required.")
@@ -32,6 +32,7 @@ def chat_message(
         logger.warning(f"Chat message rejected: message too long")
         raise HTTPException(status_code=400, detail="Message too long (max 2000 characters).")
     try:
+        user_token = user["token"]
         session = ConversationSession.load(req.conversation_id, user_token=user_token)
         if not session:
             logger.warning(f"Chat message: conversation not found {req.conversation_id}")

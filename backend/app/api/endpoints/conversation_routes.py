@@ -1,15 +1,15 @@
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Depends
 import logging
 from app.models.conversation import ConversationSession
-from app.models import MessageModel, ConversationHistoryResponse, ConversationDeleteResponse, ErrorResponse
-from .auth_utils import get_token_from_header
+from app.models import MessageModel, ConversationHistoryResponse, ConversationDeleteResponse
+from app.utils.deps import get_current_user
 
 logger = logging.getLogger("chat_with_pdf_api")
 conversation_router = APIRouter()
 
 @conversation_router.get("/conversations/{conversation_id}", summary="Get conversation history", response_model=ConversationHistoryResponse)
-def get_conversation(conversation_id: str, authorization: str = Header(...)):
-    user_token = get_token_from_header(authorization)
+def get_conversation(conversation_id: str, user: dict = Depends(get_current_user)):
+    user_token = user["token"]
     try:
         session = ConversationSession.load(conversation_id, user_token=user_token)
         if not session:
@@ -23,10 +23,9 @@ def get_conversation(conversation_id: str, authorization: str = Header(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @conversation_router.delete("/conversations/{conversation_id}", summary="Reset conversation", response_model=ConversationDeleteResponse)
-def reset_conversation(conversation_id: str, authorization: str = Header(...)):
-    user_token = get_token_from_header(authorization)
+def reset_conversation(conversation_id: str, user: dict = Depends(get_current_user)):
+    user_token = user["token"]
     try:
-        import os
         db_path = ConversationSession._get_db_path()
         import sqlite3
         session = ConversationSession.load(conversation_id, user_token=user_token)

@@ -10,14 +10,18 @@ class Citation:
         self.citation_type = citation_type  # e.g., 'text', 'table', 'figure'
 
     def format(self) -> str:
-        base = f"[Page {self.page}]"
-        if self.citation_type == "table":
-            base = f"[Table, Page {self.page}]"
-        elif self.citation_type == "figure":
-            base = f"[Figure, Page {self.page}]"
-        if self.chunk_id:
-            base += f" (Chunk {self.chunk_id})"
-        return base
+        doc_part = f"Document: {self.document_id}" if self.document_id else "Document: unknown"
+        page_part = f"Page: {self.page}" if self.page else "Page: ?"
+        chunk_part = f"Chunk: {self.chunk_id}" if self.chunk_id else ""
+        type_part = f"Type: {self.citation_type}" if self.citation_type else ""
+        # Compose formatted string
+        formatted = f"[{doc_part} | {page_part}"
+        if chunk_part:
+            formatted += f" | {chunk_part}"
+        if type_part:
+            formatted += f" | {type_part}"
+        formatted += "]"
+        return formatted
 
     def to_dict(self) -> Dict[str, Any]:
         return {
