@@ -1,0 +1,13 @@
+# Ignore node modules and build output
+node_modules/
+.next/
+dist/
+
+# Ignore secrets and environment files
+.env
+.env.*
+
+# Ignore IDE/editor files
+.DS_Store
+.idea/
+*.log

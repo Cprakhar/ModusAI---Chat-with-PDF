@@ -1,10 +1,22 @@
 "use client"
-
-import { useState } from "react"
-import { FileText, MessageSquare, Settings, Upload, User, LogOut, Trash2, Eye } from "lucide-react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { FileText, MessageSquare, Settings, Upload, User, LogOut, Loader2, Trash2, Plus } from "lucide-react"
+
+interface ConversationItem {
+  id: string
+  title: string
+  lastMessage: string
+  date: string
+}
+
+interface DocumentItem {
+  document_id: string;
+  name: string;
+  upload_time: string;
+}
 
 interface SidebarProps {
   activeView: "documents" | "chat"
@@ -15,31 +27,11 @@ interface SidebarProps {
   setSelectedConversation: (id: string | null) => void
   onLogout: () => void
   onPDFUpload?: (file: File) => void
+  refreshDocs?: number
+  fetchDocuments: () => void
+  documents: DocumentItem[]
+  uploading: boolean
 }
-
-// Mock data
-const mockPDFs = [
-  { id: "1", name: "Research Paper.pdf", size: "2.4 MB", uploadDate: "2024-01-15" },
-  { id: "2", name: "Technical Manual.pdf", size: "5.1 MB", uploadDate: "2024-01-14" },
-  { id: "3", name: "Financial Report.pdf", size: "1.8 MB", uploadDate: "2024-01-13" },
-  { id: "4", name: "User Guide.pdf", size: "3.2 MB", uploadDate: "2024-01-12" },
-  { id: "5", name: "API Documentation.pdf", size: "4.7 MB", uploadDate: "2024-01-11" },
-  { id: "6", name: "Marketing Report.pdf", size: "2.1 MB", uploadDate: "2024-01-10" },
-]
-
-const mockConversations = [
-  { id: "1", title: "Research Paper Analysis", lastMessage: "What are the key findings?", date: "2024-01-15" },
-  { id: "2", title: "Technical Questions", lastMessage: "Explain the implementation details", date: "2024-01-14" },
-  { id: "3", title: "Financial Overview", lastMessage: "Summarize Q4 results", date: "2024-01-13" },
-  {
-    id: "4",
-    title: "User Experience Discussion",
-    lastMessage: "How can we improve the interface?",
-    date: "2024-01-12",
-  },
-  { id: "5", title: "API Integration Help", lastMessage: "Need help with authentication", date: "2024-01-11" },
-  { id: "6", title: "Marketing Strategy", lastMessage: "Review the campaign metrics", date: "2024-01-10" },
-]
 
 export function Sidebar({
   activeView,
@@ -50,94 +42,89 @@ export function Sidebar({
   setSelectedConversation,
   onLogout,
   onPDFUpload,
+  refreshDocs,
+  fetchDocuments,
+  documents,
+  uploading,
 }: SidebarProps) {
-  const [pdfs, setPdfs] = useState(mockPDFs)
-  const [conversations, setConversations] = useState(mockConversations)
+  const [conversations, setConversations] = useState<ConversationItem[]>([])
+  const [loadingConvos, setLoadingConvos] = useState(false)
 
-  const handleDeletePDF = (id: string) => {
-    setPdfs(pdfs.filter((pdf) => pdf.id !== id))
-    if (selectedPDF === id) {
-      setSelectedPDF(null)
+  useEffect(() => {
+    if (activeView === "chat") {
+      const fetchConversations = async () => {
+        setLoadingConvos(true)
+        try {
+          const token = localStorage.getItem("token")
+          const res = await fetch("/api/conversations", {
+            headers: {
+              Authorization: token ? `Bearer ${token}` : "",
+            },
+          })
+          if (res.ok) {
+            const data = await res.json()
+            setConversations(data.conversations || [])
+          } else {
+            setConversations([])
+          }
+        } catch {
+          setConversations([])
+        }
+        setLoadingConvos(false)
+      }
+      fetchConversations()
     }
-  }
+  }, [activeView, refreshDocs])
 
-  const handleDeleteConversation = (id: string) => {
-    setConversations(conversations.filter((conv) => conv.id !== id))
-    if (selectedConversation === id) {
-      setSelectedConversation(null)
-    }
-  }
+  // Listen for 'start-chat' event and update state using React hooks
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (e.detail && e.detail.documentId) {
+        setSelectedPDF(e.detail.documentId);
+        setActiveView('chat');
+      }
+    };
+    window.addEventListener('start-chat', handler);
+    return () => window.removeEventListener('start-chat', handler);
+  }, [setSelectedPDF, setActiveView]);
 
   return (
     <div className="w-80 bg-[#232326] border-r border-gray-700 flex flex-col h-screen">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-gray-700">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-white">Chat with PDF</h1>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="p-1">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                  <AvatarFallback className="bg-[#FFB020] text-black">JD</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#2C2C2E] border-gray-600">
-              <DropdownMenuItem className="text-white hover:bg-gray-700">
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-white hover:bg-gray-700" onClick={onLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      <div className="flex-shrink-0 p-4 border-b border-gray-700 flex items-center justify-between bg-gradient-to-r from-[#232326] to-[#1C1C1E]">
+        <div className="flex items-center space-x-3">
+          <div>
+            <h1 className="text-2xl font-bold text-white leading-tight">Chat with PDF</h1>
+            <p className="text-xs text-gray-400">Your AI-powered document assistant</p>
+          </div>
         </div>
-
-        <Button
-          className="w-full bg-[#FFB020] hover:bg-[#FFD700] text-black font-medium rounded-xl"
-          onClick={() => {
-            const fileInput = document.getElementById("pdf-upload") as HTMLInputElement
-            fileInput?.click()
-          }}
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          Upload PDF
-        </Button>
-        <input
-          id="pdf-upload"
-          type="file"
-          accept=".pdf"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) {
-              // Handle file upload
-              console.log("File uploaded:", file)
-
-              // Add the new PDF to the list (simulate upload)
-              const newPDF = {
-                id: Date.now().toString(),
-                name: file.name,
-                size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-                uploadDate: new Date().toISOString().split("T")[0],
+        <div className="flex items-center space-x-2">
+          <Button
+            className="bg-[#FFB020] hover:bg-[#FFD700] text-black font-medium rounded-xl"
+            onClick={() => {
+              const fileInput = document.getElementById("pdf-upload") as HTMLInputElement
+              fileInput?.click()
+            }}
+            disabled={uploading}
+          >
+            {uploading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Upload className="h-4 w-4" />}
+            {uploading ? "Uploading..." : ""}
+          </Button>
+          <input
+            id="pdf-upload"
+            type="file"
+            accept=".pdf"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (file && onPDFUpload) {
+                onPDFUpload(file)
+                fetchDocuments()
+                e.target.value = ""
               }
-              setPdfs((prev) => [newPDF, ...prev])
-
-              // Switch to chat interface and select the new PDF
-              setActiveView("chat")
-              setSelectedPDF(newPDF.id)
-
-              // Reset the input
-              e.target.value = ""
-
-              // Call the onPDFUpload prop if it exists
-              onPDFUpload?.(file)
-            }
-          }}
-        />
+            }}
+          />
+        </div>
       </div>
 
       {/* Navigation */}
@@ -176,104 +163,152 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {activeView === "documents" ? (
           <div className="space-y-2">
-            {pdfs.map((pdf) => (
-              <div
-                key={pdf.id}
-                className={`p-3 rounded-xl border cursor-pointer transition-colors ${
-                  selectedPDF === pdf.id
-                    ? "bg-[#FFB020]/10 border-[#FFB020]"
-                    : "bg-[#2C2C2E] border-gray-600 hover:border-gray-500"
-                }`}
-                onClick={() => setSelectedPDF(pdf.id)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-white truncate">{pdf.name}</h3>
-                    <p className="text-sm text-gray-400">{pdf.size}</p>
-                    <p className="text-xs text-gray-500">{pdf.uploadDate}</p>
-                  </div>
-                  <div className="flex space-x-1 ml-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-gray-400 hover:text-white"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        console.log("View PDF:", pdf.id)
-                      }}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-gray-400 hover:text-red-400"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeletePDF(pdf.id)
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            {documents.length === 0 ? (
+              <div className="text-gray-400">No documents uploaded yet.</div>
+            ) : (
+              documents.map((doc) => (
+                <div
+                  key={doc.document_id}
+                  className={`p-3 rounded-xl border cursor-pointer transition-colors ${
+                    selectedPDF === doc.document_id
+                      ? "bg-[#FFB020]/10 border-[#FFB020]"
+                      : "bg-[#2C2C2E] border-gray-600 hover:border-gray-500"
+                  }`}
+                  onClick={() => setSelectedPDF(doc.document_id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-white truncate">{doc.name || doc.document_id}</h3>
+                      <p className="text-xs text-gray-400">Uploaded: {doc.upload_time ? new Date(doc.upload_time).toLocaleString() : ""}</p>
+                    </div>
+                    <div className="flex flex-col items-end space-y-2">
+                      <button
+                        className="ml-2 p-0 rounded hover:bg-yellow-600/20"
+                        title="Start new chat for this PDF"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (typeof window !== 'undefined') {
+                            const event = new CustomEvent('start-chat', { detail: { documentId: doc.document_id } });
+                            window.dispatchEvent(event);
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 text-[#FFB020]" />
+                      </button>
+                      <button
+                        className="ml-2 p-0 rounded hover:bg-red-600/20"
+                        title="Delete PDF"
+                        onClick={async e => {
+                          e.stopPropagation();
+                          if (!window.confirm("Delete this document?")) return;
+                          const token = localStorage.getItem("token");
+                          // First, delete the document
+                          const res = await fetch(`/api/documents/${doc.document_id}`, {
+                            method: "DELETE",
+                            headers: {
+                              Authorization: token ? `Bearer ${token}` : "",
+                            },
+                          });
+                          if (res.ok) {
+                            // Remove from parent state by calling fetchDocuments
+                            fetchDocuments();
+                            if (selectedPDF === doc.document_id) setSelectedPDF(null);
+                            // Delete all conversations associated with this document
+                            setConversations(prevConvs => {
+                              const toDelete = prevConvs.filter(c => c.title && c.title.includes(doc.document_id));
+                              toDelete.forEach(async (conv) => {
+                                await fetch(`/api/conversations/${conv.id}`, {
+                                  method: "DELETE",
+                                  headers: {
+                                    Authorization: token ? `Bearer ${token}` : "",
+                                  },
+                                });
+                              });
+                              return prevConvs.filter(c => !c.title || !c.title.includes(doc.document_id));
+                            });
+                            if (selectedConversation && conversations.some(c => c.title && c.title.includes(doc.document_id))) {
+                              setSelectedConversation(null);
+                            }
+                          } else {
+                            alert("Failed to delete document.");
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-400" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         ) : (
           <div className="space-y-2">
-            {conversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={`p-3 rounded-xl border cursor-pointer transition-colors ${
-                  selectedConversation === conv.id
-                    ? "bg-[#FFB020]/10 border-[#FFB020]"
-                    : "bg-[#2C2C2E] border-gray-600 hover:border-gray-500"
-                }`}
-                onClick={() => setSelectedConversation(conv.id)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-white truncate">{conv.title}</h3>
-                    <p className="text-sm text-gray-400 truncate">{conv.lastMessage}</p>
-                    <p className="text-xs text-gray-500">{conv.date}</p>
+            {loadingConvos ? (
+              <div className="text-gray-400 animate-pulse">Loading conversations...</div>
+            ) : conversations.length === 0 ? (
+              <div className="text-gray-400">No conversations found.</div>
+            ) : (
+              conversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`p-3 rounded-xl border cursor-pointer transition-colors ${
+                    selectedConversation === conv.id
+                      ? "bg-[#FFB020]/10 border-[#FFB020]"
+                      : "bg-[#2C2C2E] border-gray-600 hover:border-gray-500"
+                  }`}
+                  onClick={() => setSelectedConversation(conv.id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-white truncate">{conv.title || conv.id}</h3>
+                      <p className="text-xs text-gray-400">
+                        {conv.lastMessage ? conv.lastMessage.slice(0, 36) + (conv.lastMessage.length > 36 ? '…' : '') : ''}
+                      </p>
+                      <p className="text-xs text-gray-500">{conv.date}</p>
+                    </div>
+                    <button
+                      className="ml-2 p-1 rounded hover:bg-red-600/20"
+                      title="Delete conversation"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!window.confirm("Delete this conversation?")) return;
+                        const token = localStorage.getItem("token");
+                        const res = await fetch(`/api/conversations/${conv.id}`, {
+                          method: "DELETE",
+                          headers: {
+                            Authorization: token ? `Bearer ${token}` : "",
+                          },
+                        });
+                        if (res.ok) {
+                          setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+                          if (selectedConversation === conv.id) setSelectedConversation(null);
+                        } else {
+                          alert("Failed to delete conversation.");
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-400 p-0" />
+                    </button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-gray-400 hover:text-red-400 ml-2"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteConversation(conv.id)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         )}
       </div>
 
-      {/* Bottom Actions - Fixed at bottom of screen */}
-      <div className="flex-shrink-0 p-4 border-t border-gray-700 bg-[#232326]">
-        <div className="flex items-center justify-between">
-          {/* Settings Button - Left side */}
-          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-gray-700 rounded-xl p-2">
-            <Settings className="h-5 w-5" />
-          </Button>
-
-          {/* Logout Button - Right side */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-xl p-2"
-            onClick={onLogout}
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
-        </div>
+      {/* Settings */}
+      <div className="flex-shrink-0 p-4 border-t border-gray-700">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full border-gray-600 text-white hover:bg-gray-700 bg-transparent"
+          onClick={onLogout}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
       </div>
     </div>
   )

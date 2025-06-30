@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { CitationPanel } from "@/components/citation-panel"
-import { FloatingActionButton } from "@/components/floating-action-button"
 
 interface ChatInterfaceProps {
   selectedConversation: string | null
+  selectedPDF?: string | null // Optional prop for selected PDF
 }
 
 interface Message {
   id: string
   type: "user" | "ai"
   content: string
-  timestamp: string
+  timestamp?: string
   citations?: Citation[]
 }
 
@@ -27,51 +27,8 @@ interface Citation {
   relevance: number
 }
 
-const mockMessages: Message[] = [
-  {
-    id: "1",
-    type: "user",
-    content: "What are the main findings of this research paper?",
-    timestamp: "10:30 AM",
-  },
-  {
-    id: "2",
-    type: "ai",
-    content:
-      "Based on the research paper, there are several key findings:\n\n1. **Machine Learning Efficacy**: The study demonstrates that ML algorithms can improve diagnostic accuracy by 23% compared to traditional methods.\n\n2. **Cost Reduction**: Implementation of AI-driven healthcare solutions resulted in a 15% reduction in operational costs.\n\n3. **Patient Outcomes**: Patient satisfaction scores increased by 18% when AI-assisted diagnosis was used.\n\nThese findings suggest significant potential for AI integration in healthcare systems.",
-    timestamp: "10:31 AM",
-    citations: [
-      { id: "1", page: 12, snippet: "ML algorithms showed 23% improvement in diagnostic accuracy...", relevance: 0.95 },
-      {
-        id: "2",
-        page: 18,
-        snippet: "Cost analysis revealed 15% reduction in operational expenses...",
-        relevance: 0.87,
-      },
-      { id: "3", page: 24, snippet: "Patient satisfaction metrics improved by 18%...", relevance: 0.82 },
-    ],
-  },
-  {
-    id: "3",
-    type: "user",
-    content: "Can you provide more details about the cost reduction analysis?",
-    timestamp: "10:32 AM",
-  },
-  {
-    id: "4",
-    type: "ai",
-    content:
-      "The cost reduction analysis in the study reveals several key areas where AI implementation led to significant savings:\n\n**Operational Efficiency**: AI-driven automation reduced manual processing time by 40%, leading to substantial labor cost savings.\n\n**Diagnostic Accuracy**: Improved accuracy reduced the need for repeat tests and procedures, saving approximately $2.3M annually across the study hospitals.\n\n**Resource Optimization**: AI-powered scheduling and resource allocation improved utilization rates by 25%, reducing waste and overhead costs.\n\nThe study tracked these metrics over 18 months across 12 healthcare facilities.",
-    timestamp: "10:33 AM",
-    citations: [
-      { id: "4", page: 19, snippet: "Operational efficiency improvements through AI automation...", relevance: 0.93 },
-      { id: "5", page: 21, snippet: "Cost savings analysis across multiple healthcare facilities...", relevance: 0.89 },
-    ],
-  },
-]
-
-export function ChatInterface({ selectedConversation }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Message[]>(mockMessages)
+export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfaceProps) {
+  const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isDeepDive, setIsDeepDive] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -87,8 +44,54 @@ export function ChatInterface({ selectedConversation }: ChatInterfaceProps) {
     scrollToBottom()
   }, [messages])
 
+  // Fetch conversation history when selectedConversation changes
+  useEffect(() => {
+    if (!selectedConversation) {
+      setMessages([])
+      return
+    }
+    const fetchHistory = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        const res = await fetch(`/api/conversations/${selectedConversation}`, {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        })
+        if (!res.ok) {
+          setMessages([])
+          return
+        }
+        const data = await res.json()
+        // Map backend messages to UI format
+        const mapped = (data.history || []).map((msg: any, idx: number) => ({
+          id: msg.id || idx.toString(),
+          type: msg.role === "user" ? "user" : "ai",
+          content: msg.content,
+          timestamp: msg.timestamp || "",
+          citations: msg.citations || [],
+        }))
+        // If no messages, show a starter message
+        if (mapped.length === 0) {
+          setMessages([
+            {
+              id: "starter",
+              type: "ai",
+              content: "Welcome! Ask any question about your PDF to get started.",
+            },
+          ])
+        } else {
+          setMessages(mapped)
+        }
+      } catch (e) {
+        setMessages([])
+      }
+    }
+    fetchHistory()
+  }, [selectedConversation])
+
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return
+    if (!inputValue.trim() || !selectedConversation) return
 
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -101,22 +104,158 @@ export function ChatInterface({ selectedConversation }: ChatInterfaceProps) {
     setInputValue("")
     setIsLoading(true)
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        type: "ai",
-        content: `This is a ${isDeepDive ? "deep-dive" : "multi-turn"} response to: "${inputValue}"\n\nI would analyze the PDF content and provide a comprehensive answer based on the document context. This response demonstrates how the chat interface handles longer conversations and maintains proper scrolling behavior.`,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        citations: [
-          { id: "1", page: 5, snippet: "Relevant excerpt from page 5...", relevance: 0.92 },
-          { id: "2", page: 12, snippet: "Supporting information from page 12...", relevance: 0.85 },
-        ],
+    if (isDeepDive) {
+      // Deep-dive mode: stream via WebSocket (send JSON payload)
+      const documentId = selectedPDF || selectedConversation;
+      if (!documentId) {
+        setIsLoading(false)
+        alert("Please select a PDF or conversation for deep-dive mode.")
+        return
       }
-      setMessages((prev) => [...prev, aiResponse])
-      setSelectedCitations(aiResponse.citations || [])
+      try {
+        const token = localStorage.getItem("token")
+        console.log("[DeepDive] JWT token sent:", token)
+        const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws"
+        // Use backend port for WebSocket in dev (bypass Next.js proxy)
+        let wsUrl = '';
+        if (window.location.hostname === "localhost" && window.location.port === "3000") {
+          wsUrl = `${wsProtocol}://localhost:8000/api/v1/chat/deep_query/stream`;
+        } else {
+          wsUrl = `${wsProtocol}://${window.location.host}/api/chat/deep_query/stream`;
+        }
+        const ws = new WebSocket(wsUrl)
+        const aiMessageId = (Date.now() + 1).toString()
+        let aiMessage: Message = {
+          id: aiMessageId,
+          type: "ai",
+          content: "",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          citations: [],
+        }
+        setMessages((prev) => [...prev, aiMessage])
+        ws.onopen = () => {
+          ws.send(
+            JSON.stringify({
+              document_id: documentId, // Use selectedPDF or fallback to selectedConversation
+              query: newMessage.content,
+              token,
+            })
+          )
+        }
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data)
+          if (data.token) {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId
+                  ? { ...msg, content: msg.content + data.token }
+                  : msg
+              )
+            )
+          }
+          if (data.citations) {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId
+                  ? { ...msg, citations: data.citations }
+                  : msg
+              )
+            )
+            setSelectedCitations(data.citations)
+          }
+          if (data.done) {
+            setIsLoading(false)
+            ws.close()
+          }
+          if (data.error) {
+            setIsLoading(false)
+            setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId))
+            alert(data.error)
+            ws.close()
+          }
+        }
+        ws.onerror = () => {
+          setIsLoading(false)
+          setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId))
+          alert("WebSocket error during deep-dive.")
+          ws.close()
+        }
+        ws.onclose = () => {
+          setIsLoading(false)
+        }
+      } catch (err) {
+        setIsLoading(false)
+        setMessages((prev) => prev.filter((msg) => msg.id !== newMessage.id))
+        alert("Deep-dive failed. Please try again.")
+      }
+      return
+    }
+
+    // Streaming AI response via WebSocket (multi-turn)
+    let aiMessageId = (Date.now() + 1).toString()
+    let aiMessage: Message = {
+      id: aiMessageId,
+      type: "ai",
+      content: "",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      citations: [],
+    }
+    setMessages((prev) => [...prev, aiMessage])
+
+    try {
+      const token = localStorage.getItem("token")
+      console.log("[MultiTurn] JWT token sent:", token)
+      const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws"
+      // FIX: Use /api/chat/stream (no /v1)
+      const wsUrl = `${wsProtocol}://${window.location.host}/api/chat/stream?conversation_id=${selectedConversation}&message=${encodeURIComponent(inputValue)}&token=${token}`
+      const ws = new WebSocket(wsUrl)
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        if (data.token) {
+          // Append streamed token to the last AI message
+          setMessages((prev) => {
+            return prev.map((msg) =>
+              msg.id === aiMessageId
+                ? { ...msg, content: msg.content + data.token }
+                : msg
+            )
+          })
+        }
+        if (data.citations) {
+          setMessages((prev) => {
+            return prev.map((msg) =>
+              msg.id === aiMessageId
+                ? { ...msg, citations: data.citations }
+                : msg
+            )
+          })
+          setSelectedCitations(data.citations)
+        }
+        if (data.done) {
+          setIsLoading(false)
+          ws.close()
+        }
+        if (data.error) {
+          setIsLoading(false)
+          setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId))
+          alert(data.error)
+          ws.close()
+        }
+      }
+      ws.onerror = () => {
+        setIsLoading(false)
+        setMessages((prev) => prev.filter((msg) => msg.id !== aiMessageId))
+        alert("WebSocket error. Please try again.")
+        ws.close()
+      }
+      ws.onclose = () => {
+        setIsLoading(false)
+      }
+    } catch (err) {
       setIsLoading(false)
-    }, 2000)
+      alert("Failed to connect to chat stream.")
+    }
   }
 
   const handleCitationClick = (citation: Citation) => {
@@ -128,42 +267,44 @@ export function ChatInterface({ selectedConversation }: ChatInterfaceProps) {
       {/* Chat Area */}
       <div className="flex-1 flex flex-col h-full min-w-0">
         {/* Header - Fixed */}
-        <div className="flex-shrink-0 p-4 border-b border-gray-700 bg-[#232326]">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-xl font-bold text-white truncate">
-                {selectedConversation ? "Research Paper Analysis" : "New Conversation"}
-              </h1>
-              <p className="text-gray-400 text-sm">Chat with your PDF documents</p>
-            </div>
+        {selectedConversation && (
+          <div className="flex-shrink-0 p-4 border-b border-gray-700 bg-[#232326]">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl font-bold text-white truncate">
+                  Research Paper Analysis
+                </h1>
+                <p className="text-gray-400 text-sm">Chat with your PDF documents</p>
+              </div>
 
-            {/* Mode Toggle */}
-            <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
-              <span className="text-sm text-gray-400">Multi-turn</span>
-              <Button variant="ghost" size="sm" className="p-1" onClick={() => setIsDeepDive(!isDeepDive)}>
-                {isDeepDive ? (
-                  <ToggleRight className="h-6 w-6 text-[#FFB020]" />
-                ) : (
-                  <ToggleLeft className="h-6 w-6 text-gray-400" />
-                )}
-              </Button>
-              <span className="text-sm text-gray-400">Deep-dive</span>
-
-              {/* Citations Toggle */}
-              {selectedCitations.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-gray-600 text-white hover:bg-gray-700 bg-transparent ml-2"
-                  onClick={() => setShowCitations(!showCitations)}
-                >
-                  <FileText className="h-4 w-4 mr-1" />
-                  Citations ({selectedCitations.length})
+              {/* Mode Toggle */}
+              <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
+                <span className="text-sm text-gray-400">Multi-turn</span>
+                <Button variant="ghost" size="sm" className="p-1" onClick={() => setIsDeepDive(!isDeepDive)}>
+                  {isDeepDive ? (
+                    <ToggleRight className="h-6 w-6 text-[#FFB020]" />
+                  ) : (
+                    <ToggleLeft className="h-6 w-6 text-gray-400" />
+                  )}
                 </Button>
-              )}
+                <span className="text-sm text-gray-400">Deep-dive</span>
+
+                {/* Citations Toggle */}
+                {selectedCitations.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-gray-600 text-white hover:bg-gray-700 bg-transparent ml-2"
+                    onClick={() => setShowCitations(!showCitations)}
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Citations ({selectedCitations.length})
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Messages - Scrollable */}
         <div className="flex-1 overflow-y-auto min-h-0">
@@ -201,9 +342,9 @@ export function ChatInterface({ selectedConversation }: ChatInterfaceProps) {
                       {message.citations && message.citations.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-gray-600">
                           <div className="flex flex-wrap gap-2">
-                            {message.citations.map((citation) => (
+                            {message.citations.map((citation, idx) => (
                               <Badge
-                                key={citation.id}
+                                key={citation.id ?? idx}
                                 variant="secondary"
                                 className="bg-[#FFB020]/20 text-[#FFB020] hover:bg-[#FFB020]/30 cursor-pointer text-xs"
                                 onClick={() => {
@@ -218,10 +359,6 @@ export function ChatInterface({ selectedConversation }: ChatInterfaceProps) {
                           </div>
                         </div>
                       )}
-
-                      <div className={`text-xs mt-2 ${message.type === "user" ? "text-black/70" : "text-gray-400"}`}>
-                        {message.timestamp}
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -296,14 +433,6 @@ export function ChatInterface({ selectedConversation }: ChatInterfaceProps) {
           />
         </div>
       )}
-
-      {/* Floating Action Button - Fixed within chat interface */}
-      <FloatingActionButton
-        onNewChat={() => {
-          // Handle new chat creation
-          console.log("Starting new chat")
-        }}
-      />
     </div>
   )
 }
