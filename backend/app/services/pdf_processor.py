@@ -21,7 +21,7 @@ class PDFTextExtractor:
             page = self.doc.load_page(page_num)
             text = page.get_text("text")
             pages.append({
-                "page": page_num + 1,  # 1-based page number
+                "page": page_num + 1,
                 "text": text
             })
         return pages
@@ -37,7 +37,7 @@ class PDFTextExtractor:
             blocks = page.get_text("dict").get("blocks", [])
             structured_blocks = []
             for block in blocks:
-                if block["type"] == 0:  # text block
+                if block["type"] == 0:
                     text = block.get("lines", [])
                     block_text = " ".join([span["text"] for line in text for span in line.get("spans", [])])
                     structured_blocks.append({
@@ -45,7 +45,7 @@ class PDFTextExtractor:
                         "text": block_text,
                         "type": "text"
                     })
-                elif block["type"] == 1:  # image block
+                elif block["type"] == 1:
                     structured_blocks.append({
                         "bbox": block.get("bbox"),
                         "type": "image"
@@ -118,7 +118,6 @@ class PDFTextExtractor:
         page_count = metadata.get('page_count', len(structured_text_pages))
         document = []
         for i in range(page_count):
-            # Gather all text from blocks for this page
             block_texts = [block["text"] for block in structured_text_pages[i]["blocks"] if "text" in block]
             page_text = " ".join(block_texts)
             chunk_id = f"{metadata.get('document_id', str(uuid.uuid4()))}_page_{i+1}"

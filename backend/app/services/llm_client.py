@@ -78,8 +78,6 @@ class LLMClient:
             if line:
                 try:
                     data = line.decode("utf-8")
-                    # Parse and yield only the content part (adjust as per Groq API streaming format)
-                    # Groq streaming returns JSON lines
                     chunk = json.loads(data)
                     delta = chunk.get("choices", [{}])[0].get("delta", {})
                     content = delta.get("content", "")

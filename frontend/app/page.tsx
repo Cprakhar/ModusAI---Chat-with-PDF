@@ -43,7 +43,7 @@ export default function ChatPDFApp() {
       const data = await res.json()
       setDocuments(data.documents)
     } catch (e: any) {
-      // Optionally handle error
+      //pass
     }
   }
 
@@ -85,8 +85,8 @@ export default function ChatPDFApp() {
         return;
       }
       const data = await response.json();
-      localStorage.setItem("token", data.access_token); // Store JWT after register
-      setIsAuthenticated(true); // Auto-login
+      localStorage.setItem("token", data.access_token);
+      setIsAuthenticated(true);
       setUploadError(null);
     } catch (error) {
       setUploadError("An error occurred. Please try again.");
@@ -94,7 +94,7 @@ export default function ChatPDFApp() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Remove JWT token from storage
+    localStorage.removeItem("token");
     setIsAuthenticated(false);
     setActiveView("documents");
     setSelectedPDF(null);
@@ -129,7 +129,7 @@ export default function ChatPDFApp() {
       setSelectedConversation(data.conversation_id);
       setActiveView("chat");
       setUploadSuccess(data.message || "PDF uploaded and processed.");
-      setRefreshDocs((prev) => prev + 1); // Trigger document list refresh
+      setRefreshDocs((prev) => prev + 1);
       await fetchDocuments();
     } catch (error) {
       setUploadError("An error occurred during PDF upload.");
@@ -137,19 +137,15 @@ export default function ChatPDFApp() {
     setUploading(false);
   }
 
-  // Add handlers for document selection and deletion
   const handleSelectPDF = (id: string) => {
     setSelectedPDF(id)
   }
   const handleDeletePDF = (id: string) => {
     if (selectedPDF === id) setSelectedPDF("")
-    // Optionally, you can also clear selectedConversation if it is related
   }
 
-  // Handler to go to chat for a document
   const handleChat = async (documentId: string) => {
     setSelectedPDF(documentId);
-    // Try to find an existing conversation for this document for the user
     const token = localStorage.getItem("token");
     try {
       const res = await fetch(`/api/conversations/by-document/${documentId}`, {
@@ -161,8 +157,6 @@ export default function ChatPDFApp() {
         const data = await res.json();
         setSelectedConversation(data.conversation_id);
       } else {
-        // If not found, create a new conversation (fallback: upload endpoint or custom endpoint)
-        // For now, just clear selectedConversation to trigger starter message
         setSelectedConversation("");
       }
     } catch {
@@ -171,7 +165,6 @@ export default function ChatPDFApp() {
     setActiveView("chat");
   }
 
-  // Show auth pages if not authenticated
   if (!isAuthenticated) {
     if (authView === "login") {
       return <LoginPage onLogin={handleLogin} onSwitchToRegister={() => setAuthView("register")} />
@@ -180,7 +173,6 @@ export default function ChatPDFApp() {
     }
   }
 
-  // Show main app if authenticated
   return (
     <div className="h-screen bg-[#1C1C1E] text-white">
       <SidebarProvider>

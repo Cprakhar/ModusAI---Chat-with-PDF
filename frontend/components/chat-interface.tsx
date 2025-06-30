@@ -9,7 +9,7 @@ import { CitationPanel } from "@/components/citation-panel"
 
 interface ChatInterfaceProps {
   selectedConversation: string | null
-  selectedPDF?: string | null // Optional prop for selected PDF
+  selectedPDF?: string | null
 }
 
 interface Message {
@@ -44,7 +44,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
     scrollToBottom()
   }, [messages])
 
-  // Fetch conversation history when selectedConversation changes
   useEffect(() => {
     if (!selectedConversation) {
       setMessages([])
@@ -63,7 +62,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
           return
         }
         const data = await res.json()
-        // Map backend messages to UI format
         const mapped = (data.history || []).map((msg: any, idx: number) => ({
           id: msg.id || idx.toString(),
           type: msg.role === "user" ? "user" : "ai",
@@ -71,7 +69,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
           timestamp: msg.timestamp || "",
           citations: msg.citations || [],
         }))
-        // If no messages, show a starter message
         if (mapped.length === 0) {
           setMessages([
             {
@@ -105,7 +102,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
     setIsLoading(true)
 
     if (isDeepDive) {
-      // Deep-dive mode: stream via WebSocket (send JSON payload)
       const documentId = selectedPDF || selectedConversation;
       if (!documentId) {
         setIsLoading(false)
@@ -116,7 +112,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
         const token = localStorage.getItem("token")
         console.log("[DeepDive] JWT token sent:", token)
         const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws"
-        // Use backend port for WebSocket in dev (bypass Next.js proxy)
         let wsUrl = '';
         if (window.location.hostname === "localhost" && window.location.port === "3000") {
           wsUrl = `${wsProtocol}://localhost:8000/api/v1/chat/deep_query/stream`;
@@ -136,7 +131,7 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
         ws.onopen = () => {
           ws.send(
             JSON.stringify({
-              document_id: documentId, // Use selectedPDF or fallback to selectedConversation
+              document_id: documentId,
               query: newMessage.content,
               token,
             })
@@ -191,7 +186,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
       return
     }
 
-    // Streaming AI response via WebSocket (multi-turn)
     let aiMessageId = (Date.now() + 1).toString()
     let aiMessage: Message = {
       id: aiMessageId,
@@ -206,14 +200,12 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
       const token = localStorage.getItem("token")
       console.log("[MultiTurn] JWT token sent:", token)
       const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws"
-      // FIX: Use /api/chat/stream (no /v1)
       const wsUrl = `${wsProtocol}://${window.location.host}/api/chat/stream?conversation_id=${selectedConversation}&message=${encodeURIComponent(inputValue)}&token=${token}`
       const ws = new WebSocket(wsUrl)
 
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data)
         if (data.token) {
-          // Append streamed token to the last AI message
           setMessages((prev) => {
             return prev.map((msg) =>
               msg.id === aiMessageId
@@ -264,9 +256,7 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
 
   return (
     <div className="h-screen flex">
-      {/* Chat Area */}
       <div className="flex-1 flex flex-col h-full min-w-0">
-        {/* Header - Fixed */}
         {selectedConversation && (
           <div className="flex-shrink-0 p-4 border-b border-gray-700 bg-[#232326]">
             <div className="flex items-center justify-between">
@@ -277,7 +267,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
                 <p className="text-gray-400 text-sm">Chat with your PDF documents</p>
               </div>
 
-              {/* Mode Toggle */}
               <div className="flex items-center space-x-3 flex-shrink-0 ml-4">
                 <span className="text-sm text-gray-400">Multi-turn</span>
                 <Button variant="ghost" size="sm" className="p-1" onClick={() => setIsDeepDive(!isDeepDive)}>
@@ -289,7 +278,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
                 </Button>
                 <span className="text-sm text-gray-400">Deep-dive</span>
 
-                {/* Citations Toggle */}
                 {selectedCitations.length > 0 && (
                   <Button
                     variant="outline"
@@ -305,15 +293,12 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
             </div>
           </div>
         )}
-
-        {/* Messages - Scrollable */}
         <div className="flex-1 overflow-y-auto min-h-0">
           <div className="p-4 pb-6">
             <div className="space-y-4 max-w-4xl mx-auto">
               {messages.map((message) => (
                 <div key={message.id} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`flex max-w-[80%] ${message.type === "user" ? "flex-row-reverse" : "flex-row"}`}>
-                    {/* Avatar */}
                     <div className={`flex-shrink-0 ${message.type === "user" ? "ml-3" : "mr-3"}`}>
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -328,7 +313,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
                       </div>
                     </div>
 
-                    {/* Message Content */}
                     <div
                       className={`rounded-2xl px-4 py-3 ${
                         message.type === "user"
@@ -338,7 +322,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
                     >
                       <div className="whitespace-pre-wrap">{message.content}</div>
 
-                      {/* Citations */}
                       {message.citations && message.citations.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-gray-600">
                           <div className="flex flex-wrap gap-2">
@@ -364,7 +347,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
                 </div>
               ))}
 
-              {/* Loading Indicator */}
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="flex mr-3">
@@ -392,7 +374,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
           </div>
         </div>
 
-        {/* Input Area - Fixed at bottom */}
         <div className="flex-shrink-0 p-4 border-t border-gray-700 bg-[#232326]">
           <div className="max-w-4xl mx-auto">
             <div className="flex space-x-3">
@@ -402,7 +383,7 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder={`Ask a question about your PDF... (${isDeepDive ? "Deep-dive" : "Multi-turn"} mode)`}
                   className="bg-[#1C1C1E] border-gray-600 text-white placeholder-gray-400 pr-12 rounded-xl"
-                  onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                 />
               </div>
               <Button
@@ -423,7 +404,6 @@ export function ChatInterface({ selectedConversation, selectedPDF }: ChatInterfa
         </div>
       </div>
 
-      {/* Citation Panel - Only show when toggled */}
       {showCitations && selectedCitations.length > 0 && (
         <div className="flex-shrink-0 w-80 border-l border-gray-700 h-screen">
           <CitationPanel

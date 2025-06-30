@@ -10,7 +10,6 @@ class Chunker:
         """
         Splits text into paragraphs/sections using semantic boundaries (e.g., double newlines, headers).
         """
-        # Split on double newlines or section headers
         sections = re.split(r'(?:\n\s*\n|\n\s*#)', text)
         return [s.strip() for s in sections if s.strip()]
 
@@ -24,10 +23,8 @@ class Chunker:
         for section in sections:
             section_length = len(section)
             if current_length + section_length > self.chunk_size:
-                # Finalize current chunk
                 chunk_text = '\n'.join(current_chunk)
                 chunks.append(chunk_text)
-                # Start new chunk with overlap
                 overlap_text = chunk_text[-self.overlap:] if self.overlap > 0 else ''
                 current_chunk = [overlap_text, section] if overlap_text else [section]
                 current_length = len('\n'.join(current_chunk))

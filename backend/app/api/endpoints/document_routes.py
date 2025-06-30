@@ -24,9 +24,9 @@ def upload_document(
         logger.warning(f"Upload rejected: invalid file type {file.filename}")
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
     # Check file size (max 50MB)
-    file.file.seek(0, 2)  # Move to end of file
+    file.file.seek(0, 2)
     file_size = file.file.tell()
-    file.file.seek(0)     # Reset to start
+    file.file.seek(0)
     if file_size > 50 * 1024 * 1024:
         logger.warning(f"Upload rejected: file too large {file.filename}")
         raise HTTPException(status_code=400, detail="File too large (max 50MB).")
@@ -41,11 +41,9 @@ def upload_document(
         metadata = doc_data["metadata"]
         doc_chunks = doc_data["pages"]
         collection_name = metadata.get("document_id", file_id)
-        # Save metadata for collection
         upload_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
         vector_store.save_metadata(collection_name, name=file.filename, upload_time=upload_time)
         vector_store.add_chunks(collection_name, doc_chunks)
-        # Create a new conversation session for this document and user
         user_id = user["payload"].get("user_id")
         session = ConversationSession(user_id=user_id, document_id=collection_name, user_token=user["token"])
         session.save(user_token=user["token"])
@@ -61,17 +59,13 @@ def list_documents(
     user: dict = Depends(get_current_user)
 ):
     try:
-        # Example: vector_store.list_collections() returns list of dicts with id, name, upload_time
-        docs = vector_store.list_collections()  # Should return [{"document_id": ..., "name": ..., "upload_time": ...}, ...]
+        docs = vector_store.list_collections()
         logger.info(f"Listed documents: {docs}")
-        # If docs are just IDs, you need to fetch metadata for each document here
         document_infos = []
         for doc in docs:
-            # If doc is a dict with metadata, use as is. Otherwise, fetch metadata.
             if isinstance(doc, dict) and "document_id" in doc and "name" in doc and "upload_time" in doc:
                 document_infos.append(DocumentInfo(**doc))
             else:
-                # Fallback: just use ID, fill with placeholders
                 document_infos.append(DocumentInfo(document_id=doc, name=doc, upload_time=""))
         return {"documents": document_infos}
     except Exception as e:

@@ -19,7 +19,6 @@ interface CitationPanelProps {
 }
 
 export function CitationPanel({ citations, onCitationClick, onClose }: CitationPanelProps) {
-  // Track expanded state for each citation by id
   const [expanded, setExpanded] = useState<{ [id: string]: boolean }>({});
 
   const handleToggle = (id: string) => {
@@ -28,7 +27,6 @@ export function CitationPanel({ citations, onCitationClick, onClose }: CitationP
 
   return (
     <div className="h-screen bg-[#232326] flex flex-col">
-      {/* Header - Fixed */}
       <div className="flex-shrink-0 p-4 border-b border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
@@ -43,7 +41,6 @@ export function CitationPanel({ citations, onCitationClick, onClose }: CitationP
         </div>
       </div>
 
-      {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 space-y-4">
           {citations.map((citation, index) => {

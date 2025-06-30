@@ -7,14 +7,13 @@ class Citation:
         self.chunk_id = chunk_id
         self.snippet = snippet
         self.confidence = confidence
-        self.citation_type = citation_type  # e.g., 'text', 'table', 'figure'
+        self.citation_type = citation_type
 
     def format(self) -> str:
         doc_part = f"Document: {self.document_id}" if self.document_id else "Document: unknown"
         page_part = f"Page: {self.page}" if self.page else "Page: ?"
         chunk_part = f"Chunk: {self.chunk_id}" if self.chunk_id else ""
         type_part = f"Type: {self.citation_type}" if self.citation_type else ""
-        # Compose formatted string
         formatted = f"[{doc_part} | {page_part}"
         if chunk_part:
             formatted += f" | {chunk_part}"
@@ -49,7 +48,7 @@ def extract_citations_from_chunks(chunks: List[Dict[str, Any]], answer: str) -> 
                 document_id=chunk["metadata"].get("document_id", "unknown"),
                 page=page,
                 chunk_id=chunk.get("id"),
-                snippet=chunk["text"][:200],  # First 200 chars as snippet
+                snippet=chunk["text"][:200],
                 confidence=chunk.get("hybrid_score"),
                 citation_type=chunk["metadata"].get("type", "text")
             ))

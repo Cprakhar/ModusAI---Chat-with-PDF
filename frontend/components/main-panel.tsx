@@ -11,7 +11,7 @@ interface MainPanelProps {
   onDeletePDF: (id: string) => void
   documents: any[]
   fetchDocuments: () => void
-  onChat?: (documentId: string) => void // new prop
+  onChat?: (documentId: string) => void
 }
 
 export function MainPanel({ activeView, selectedPDF, selectedConversation }: MainPanelProps) {

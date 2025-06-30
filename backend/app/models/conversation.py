@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import os
 import sqlite3
-import jwt  # PyJWT library for JWT decoding
+import jwt
 
 JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM")
@@ -48,11 +48,11 @@ class ConversationSession:
         self.session_id = session_id or str(uuid.uuid4())
         self.user_id = user_id
         self.document_id = document_id
-        self.parent_session_id = parent_session_id  # For branching
+        self.parent_session_id = parent_session_id
         self.history: List[Message] = []
         self.created_at = datetime.now(timezone.utc)
         self.updated_at = self.created_at
-        self.summary: Optional[str] = None  # For context compression
+        self.summary: Optional[str] = None
 
     def add_message(self, role: str, content: str):
         msg = Message(role, content)
@@ -60,7 +60,6 @@ class ConversationSession:
         self.updated_at = msg.timestamp
 
     def get_history(self, window: int = 5) -> List[Dict[str, Any]]:
-        # Sliding window: return last N messages
         return [m.to_dict() for m in self.history[-window:]]
 
     def summarize(self, summarizer_fn=None, max_tokens: int = 512):
@@ -71,7 +70,6 @@ class ConversationSession:
         if summarizer_fn:
             self.summary = summarizer_fn([m.content for m in self.history], max_tokens=max_tokens)
         else:
-            # Simple fallback: join last N messages
             self.summary = "\n".join(m.content for m in self.history[-max_tokens:])
         return self.summary
 
@@ -97,7 +95,6 @@ class ConversationSession:
 
     @staticmethod
     def _get_db_path():
-        # Use a central db directory for all .db files
         backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
         db_dir = os.path.join(backend_dir, 'db')
         os.makedirs(db_dir, exist_ok=True)
@@ -137,13 +134,10 @@ class ConversationSession:
         db_path = self._get_db_path()
         with sqlite3.connect(db_path) as conn:
             c = conn.cursor()
-            # Upsert session
             c.execute('''INSERT OR REPLACE INTO sessions (session_id, user_id, document_id, parent_session_id, created_at, updated_at, summary)
                          VALUES (?, ?, ?, ?, ?, ?, ?)''',
                       (self.session_id, self.user_id, self.document_id, self.parent_session_id, self.created_at.isoformat(), self.updated_at.isoformat(), self.summary))
-            # Delete old messages for this session
             c.execute('DELETE FROM messages WHERE session_id = ?', (self.session_id,))
-            # Insert messages
             for m in self.history:
                 c.execute('''INSERT INTO messages (session_id, role, content, timestamp)
                              VALUES (?, ?, ?, ?)''',
@@ -166,7 +160,6 @@ class ConversationSession:
             db_user_id = row[1] if row else None
             if not row:
                 return None
-            # Always compare as strings
             if str(db_user_id) != str(token_user_id):
                 raise PermissionError(f"User {token_user_id} not authorized for session {session_id}")
             session = ConversationSession(
@@ -179,7 +172,6 @@ class ConversationSession:
             session.created_at = datetime.fromisoformat(row[4])
             session.updated_at = datetime.fromisoformat(row[5])
             session.summary = row[6]
-            # Load messages
             c.execute('SELECT role, content, timestamp FROM messages WHERE session_id = ? ORDER BY id ASC', (session_id,))
             session.history = [Message(role, content, datetime.fromisoformat(ts)) for role, content, ts in c.fetchall()]
             return session

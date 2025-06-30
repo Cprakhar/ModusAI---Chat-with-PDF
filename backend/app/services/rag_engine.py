@@ -10,11 +10,9 @@ class RAGEngine:
         self.collection_name = collection_name
 
     def retrieve(self, query: str, n_results: int = 5, filters: Optional[Dict[str, Any]] = None, similarity_threshold: Optional[float] = None) -> List[Dict[str, Any]]:
-        # Multi-stage retrieval: hybrid search, then re-rank by context overlap
         initial_results = self.vector_store.hybrid_query(
             self.collection_name, query, n_results=n_results*2, filters=filters, similarity_threshold=similarity_threshold
         )
-        # Always include the first chunk (likely to contain the name/header)
         collection = self.vector_store.get_or_create_collection(self.collection_name)
         all_docs = collection.get()
         if all_docs['documents']:
@@ -22,13 +20,11 @@ class RAGEngine:
                 'id': all_docs['ids'][0],
                 'text': all_docs['documents'][0],
                 'metadata': all_docs['metadatas'][0],
-                'hybrid_score': 1000,  # artificially high to ensure inclusion
+                'hybrid_score': 1000,
                 'context_score': 1000
             }
-            # Only add if not already present
             if not any(c['id'] == first_chunk['id'] for c in initial_results):
                 initial_results = [first_chunk] + initial_results
-        # Re-rank: prioritize chunks with more query keyword overlap
         query_keywords = set(re.findall(r'\w+', query.lower()))
         for r in initial_results:
             chunk_keywords = set(re.findall(r'\w+', r['text'].lower()))
@@ -37,7 +33,6 @@ class RAGEngine:
         return ranked[:n_results]
 
     def aggregate_context(self, chunks: List[Dict[str, Any]], max_tokens: int = 2000) -> str:
-        # Aggregate retrieved chunks into a single context window (truncate if needed)
         context = ""
         token_count = 0
         for chunk in chunks:
@@ -50,7 +45,6 @@ class RAGEngine:
         return context.strip()
 
     def create_prompt(self, query: str, context: str, mode: str = "chat") -> str:
-        # Prompt template for LLM
         if mode == "deep-dive":
             return (
                 f"You are an expert assistant. Use the provided context to answer the user's question in detail.\n"
@@ -65,7 +59,6 @@ class RAGEngine:
             )
 
     def extract_citations(self, answer: str) -> List[str]:
-        # Extract page numbers or citation markers from the answer
         return re.findall(r'page\s*(\d+)', answer, re.IGNORECASE)
 
     def expand_query(self, query: str) -> List[str]:
@@ -81,7 +74,6 @@ class RAGEngine:
             for syn in wordnet.synsets(token):
                 for lemma_obj in syn.lemmas():
                     expansions.add(lemma_obj.name().replace('_', ' '))
-        # Remove duplicates and join tokens for multi-word expansions
         expanded_queries = set()
         for exp in expansions:
             if isinstance(exp, str):
@@ -100,13 +92,11 @@ class RAGEngine:
         tokens = re.findall(r'\w+', query_lc)
         lemmas = set(lemmatizer.lemmatize(token) for token in tokens)
 
-        # Expanded keyword sets
         summary_keywords = {"summarize", "overview", "explain", "summary", "describe", "outline", "gist", "recap", "synthesis"}
         data_keywords = {"data", "dataset", "value", "values", "statistics", "statistic", "number", "numbers", "amount", "total", "average", "mean", "median", "distribution", "frequency", "percent", "percentage", "proportion", "ratio", "count", "trend", "increase", "decrease", "growth", "decline"}
         table_keywords = {"table", "tabular", "spreadsheet", "grid", "matrix", "sheet"}
         figure_keywords = {"figure", "chart", "graph", "plot", "diagram", "visualization", "image", "illustration", "picture", "map"}
 
-        # Synonym expansion using WordNet
         def expand_with_wordnet(keywords):
             expanded = set(keywords)
             for word in keywords:
@@ -120,21 +110,17 @@ class RAGEngine:
         table_set = expand_with_wordnet(table_keywords)
         figure_set = expand_with_wordnet(figure_keywords)
 
-        # Regex patterns for intent
         summary_patterns = [r"summar(y|ize|ise)", r"overview", r"explain", r"describe", r"outline", r"gist", r"recap", r"synthesi(s|ze)"]
         data_patterns = [r"data", r"stat(s|istics)?", r"number(s)?", r"amount", r"total", r"average", r"mean", r"median", r"distribution", r"frequency", r"percent(age)?", r"proportion", r"ratio", r"count", r"trend", r"increase", r"decrease", r"growth", r"decline"]
         table_patterns = [r"table", r"tabular", r"spreadsheet", r"grid", r"matrix", r"sheet"]
         figure_patterns = [r"figure", r"chart", r"graph", r"plot", r"diagram", r"visualization", r"image", r"illustration", r"picture", r"map"]
 
-        # Helper: check if any keyword or lemma is present
         def match_keywords(keywords):
             return any(word in tokens or word in lemmas for word in keywords)
 
-        # Helper: check regex patterns
         def match_patterns(patterns):
             return any(re.search(p, query_lc) for p in patterns)
 
-        # Classification logic (priority order)
         if match_keywords(summary_set) or match_patterns(summary_patterns):
             return "summary"
         if match_keywords(data_set) or match_patterns(data_patterns):
@@ -143,10 +129,8 @@ class RAGEngine:
             return "table"
         if match_keywords(figure_set) or match_patterns(figure_patterns):
             return "figure"
-        # Pattern-based: e.g., "show me", "list all", "how many", "what is the average"
         if re.search(r"show me|list all|how many|what is the (average|mean|median|total|sum|count)", query_lc):
             return "data"
-        # Fallback
         return "qa"
 
     def aggregate_conversation_context(self, conversation_history: List[str], retrieved_chunks: List[Dict[str, Any]], max_tokens: int = 2000, max_turns: int = 5) -> str:
@@ -161,12 +145,10 @@ class RAGEngine:
         Returns:
             Aggregated context string for LLM input.
         """
-        # Prepare conversation turns (most recent max_turns)
         selected_turns = conversation_history[-max_turns:] if max_turns > 0 else conversation_history
         conversation_text = "\n".join(selected_turns)
         conversation_tokens = len(conversation_text.split())
 
-        # Prepare document context (as in aggregate_context)
         doc_context = ""
         doc_tokens = 0
         for chunk in retrieved_chunks:
@@ -177,6 +159,5 @@ class RAGEngine:
             doc_context += chunk_text
             doc_tokens += tokens
 
-        # Combine conversation and document context
         context = f"Conversation:\n{conversation_text}\n\nDocument Context:\n{doc_context.strip()}"
         return context.strip()

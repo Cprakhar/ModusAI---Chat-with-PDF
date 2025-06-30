@@ -2,13 +2,13 @@ pymupdf
 python-multipart
 pdfplumber
 chromadb
-sentence-transformers==2.2.2
-torch=2.2.2
+sentence-transformers
+torch
 nltk
 fastapi
 pydantic[email]
 uvicorn
 pyjwt
 slowapi
-passlib>=1.7.4
-bcrypt==4.0.1
+passlib
+bcrypt

@@ -6,7 +6,7 @@ class WSChatTokenMessage(BaseModel):
     type: str = "token"
 
 class WSCitationsMessage(BaseModel):
-    citations: List[Any]  # Should match your CitationModel
+    citations: List[Any]
     conversation_id: str
     done: bool = True
     type: str = "citations"

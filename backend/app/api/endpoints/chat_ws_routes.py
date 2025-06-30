@@ -5,7 +5,7 @@ from app.services.llm_client import LLMClient
 from app.services.rag_engine import RAGEngine
 from app.models.conversation import ConversationSession
 from app.utils.citations import extract_citations_from_chunks
-from app.utils.deps import get_current_user, verify_token
+from app.utils.deps import verify_token
 from app.models import CitationModel
 import jwt
 import os
@@ -58,16 +58,13 @@ async def chat_stream(
         )
         llm_client = LLMClient()
         full_response = ""
-        # Stream tokens/chunks if supported
         if hasattr(llm_client, 'chat_stream'):
             async for chunk in llm_client.chat_stream(message, context):
                 await websocket.send_json({"token": chunk})
                 full_response += chunk
         else:
-            # Fallback: not streaming, just get the full answer
             full_response = llm_client.chat(message, context)
             await websocket.send_json({"token": full_response})
-        # Save assistant response
         session.add_message("assistant", full_response)
         session.save(user_token=token)
         citations = [c.to_dict() for c in extract_citations_from_chunks(retrieved, full_response)]
@@ -95,7 +92,6 @@ async def deep_query_stream(websocket):
         token = data.get("token")
         logger.debug(f"[DeepDiveWS] Token received: {token}")
         logger.debug(f"[DeepDiveWS] Received request: document_id={document_id}, query={query}")
-        # Token validation
         if not token:
             await websocket.send_json({"error": "Authentication token required."})
             await websocket.close()

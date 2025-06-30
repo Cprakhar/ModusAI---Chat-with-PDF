@@ -48,7 +48,6 @@ def get_conversation_by_document(document_id: str, user: dict = Depends(get_curr
     user_token = user["token"]
     user_id = user["payload"].get("user_id")
     try:
-        # Find a session for this user and document
         session = ConversationSession.find_by_document_and_user(document_id, user_id, user_token=user_token)
         if not session:
             logger.warning(f"No conversation found for document {document_id} and user {user_id}")
@@ -73,7 +72,6 @@ def list_conversations(user: dict = Depends(get_current_user)):
             conversations = []
             for row in rows:
                 session_id, document_id, updated_at = row
-                # Optionally, fetch last message for preview
                 c.execute('''SELECT content FROM messages WHERE session_id = ? ORDER BY id DESC LIMIT 1''', (session_id,))
                 last_msg_row = c.fetchone()
                 last_message = last_msg_row[0] if last_msg_row else ""

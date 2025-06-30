@@ -37,7 +37,6 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
   return (
     <div className="min-h-screen bg-[#1C1C1E] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo/Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-[#FFB020] rounded-2xl mb-4">
             <span className="text-2xl font-bold text-black">📄</span>
@@ -52,7 +51,6 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name Field */}
               <div className="space-y-2">
                 <label htmlFor="name" className="text-sm font-medium text-gray-300">
                   Full Name
@@ -71,7 +69,6 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
                 </div>
               </div>
 
-              {/* Email Field */}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-gray-300">
                   Email
@@ -90,7 +87,6 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
                 </div>
               </div>
 
-              {/* Password Field */}
               <div className="space-y-2">
                 <label htmlFor="password" className="text-sm font-medium text-gray-300">
                   Password
@@ -118,7 +114,6 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
                 </div>
               </div>
 
-              {/* Confirm Password Field */}
               <div className="space-y-2">
                 <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-300">
                   Confirm Password
@@ -146,7 +141,6 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
                 </div>
               </div>
 
-              {/* Submit Button */}
               <Button
                 type="submit"
                 disabled={isLoading || !name || !email || !password || !confirmPassword || password !== confirmPassword}
@@ -166,7 +160,6 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
               </Button>
             </form>
 
-            {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-600"></div>
@@ -176,7 +169,6 @@ export function RegisterPage({ onRegister, onSwitchToLogin }: RegisterPageProps)
               </div>
             </div>
 
-            {/* Login Link */}
             <div className="text-center">
               <span className="text-gray-400">Already have an account? </span>
               <Button

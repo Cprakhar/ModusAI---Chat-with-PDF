@@ -16,7 +16,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 auth_router = APIRouter()
 router = auth_router
 
-# Use a central db directory for all .db files
 DB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../db'))
 os.makedirs(DB_DIR, exist_ok=True)
 DB_PATH = os.path.join(DB_DIR, 'users.db')
@@ -99,5 +98,4 @@ def login(user: UserLogin):
 
 @auth_router.post("/auth/logout")
 def logout():
-    # For JWT, logout is handled client-side (delete token). Optionally, implement token blacklist here.
     return {"message": "Logged out (client should delete token)"}

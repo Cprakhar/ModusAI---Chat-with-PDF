@@ -76,7 +76,6 @@ export function Sidebar({
     }
   }, [activeView, refreshDocs])
 
-  // Listen for 'start-chat' event and update state using React hooks
   useEffect(() => {
     const handler = (e: any) => {
       if (e.detail && e.detail.documentId) {
@@ -90,7 +89,6 @@ export function Sidebar({
 
   return (
     <div className="w-80 bg-[#232326] border-r border-gray-700 flex flex-col h-screen">
-      {/* Header */}
       <div className="flex-shrink-0 p-4 border-b border-gray-700 flex items-center justify-between bg-gradient-to-r from-[#232326] to-[#1C1C1E]">
         <div className="flex items-center space-x-3">
           <div>
@@ -127,7 +125,6 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Navigation */}
       <div className="flex-shrink-0 p-4">
         <div className="flex space-x-1 bg-[#1C1C1E] rounded-xl p-1">
           <Button
@@ -159,7 +156,6 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Scrollable Content - Takes remaining space above settings */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {activeView === "documents" ? (
           <div className="space-y-2">
@@ -202,7 +198,6 @@ export function Sidebar({
                           e.stopPropagation();
                           if (!window.confirm("Delete this document?")) return;
                           const token = localStorage.getItem("token");
-                          // First, delete the document
                           const res = await fetch(`/api/documents/${doc.document_id}`, {
                             method: "DELETE",
                             headers: {
@@ -210,10 +205,8 @@ export function Sidebar({
                             },
                           });
                           if (res.ok) {
-                            // Remove from parent state by calling fetchDocuments
                             fetchDocuments();
                             if (selectedPDF === doc.document_id) setSelectedPDF(null);
-                            // Delete all conversations associated with this document
                             setConversations(prevConvs => {
                               const toDelete = prevConvs.filter(c => c.title && c.title.includes(doc.document_id));
                               toDelete.forEach(async (conv) => {
@@ -298,7 +291,6 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Settings */}
       <div className="flex-shrink-0 p-4 border-t border-gray-700">
         <Button
           variant="outline"

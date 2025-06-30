@@ -14,7 +14,6 @@ from app.api.endpoints import auth_routes
 
 app = FastAPI(title="Chat-with-PDF API")
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,7 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Logging middleware
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger = logging.getLogger("chat_with_pdf_api")
@@ -35,14 +33,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(LoggingMiddleware)
 
-# Register all modular routers under /api/v1
 app.include_router(api_router, prefix="/api/v1")
 app.include_router(auth_routes.router, prefix="/api/v1")
 
-# Register global exception handlers
 add_exception_handlers(app)
 
-# Production-ready rate limiting (10 req/sec per IP by default)
 limiter = Limiter(key_func=get_remote_address, default_limits=["10/second"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
