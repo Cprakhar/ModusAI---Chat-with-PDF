@@ -2,7 +2,8 @@ pymupdf
 python-multipart
 pdfplumber
 chromadb
-sentence_transformers
+sentence-transformers==2.2.2
+torch=2.2.2
 nltk
 fastapi
 pydantic[email]

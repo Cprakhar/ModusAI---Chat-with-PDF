@@ -1,0 +1,20 @@
+# Ignore Python cache and venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+
+# Ignore local DB and ChromaDB data
+# (mount as volumes if needed, but don't send to Docker build context)
+db/
+chroma_db/
+
+# Ignore secrets and environment files
+.env
+.env.sh
+
+# Ignore IDE/editor files
+.DS_Store
+.idea/
+*.sqlite3

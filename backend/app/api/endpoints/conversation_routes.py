@@ -42,3 +42,48 @@ def reset_conversation(conversation_id: str, user: dict = Depends(get_current_us
     except Exception as e:
         logger.error(f"Error resetting conversation {conversation_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@conversation_router.get("/conversations/by-document/{document_id}", summary="Get conversation by document_id for current user")
+def get_conversation_by_document(document_id: str, user: dict = Depends(get_current_user)):
+    user_token = user["token"]
+    user_id = user["payload"].get("user_id")
+    try:
+        # Find a session for this user and document
+        session = ConversationSession.find_by_document_and_user(document_id, user_id, user_token=user_token)
+        if not session:
+            logger.warning(f"No conversation found for document {document_id} and user {user_id}")
+            raise HTTPException(status_code=404, detail="Conversation not found for this document and user")
+        return {"conversation_id": session.session_id}
+    except Exception as e:
+        logger.error(f"Error finding conversation for document {document_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@conversation_router.get("/conversations", summary="List all conversations for current user")
+def list_conversations(user: dict = Depends(get_current_user)):
+    user_token = user["token"]
+    user_id = user["payload"].get("user_id")
+    try:
+        ConversationSession._init_db()
+        db_path = ConversationSession._get_db_path()
+        import sqlite3
+        with sqlite3.connect(db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT session_id, document_id, updated_at FROM sessions WHERE user_id = ? ORDER BY updated_at DESC''', (user_id,))
+            rows = c.fetchall()
+            conversations = []
+            for row in rows:
+                session_id, document_id, updated_at = row
+                # Optionally, fetch last message for preview
+                c.execute('''SELECT content FROM messages WHERE session_id = ? ORDER BY id DESC LIMIT 1''', (session_id,))
+                last_msg_row = c.fetchone()
+                last_message = last_msg_row[0] if last_msg_row else ""
+                conversations.append({
+                    "id": session_id,
+                    "title": f"Document {document_id}",
+                    "lastMessage": last_message,
+                    "date": updated_at,
+                })
+        return {"conversations": conversations}
+    except Exception as e:
+        logger.error(f"Error listing conversations for user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -3,14 +3,22 @@ from chromadb import Settings
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any, Optional
 import re
+import os
+import json
 
 class VectorStore:
     def __init__(self, persist_directory: str = "chroma_db", embedding_model: str = "all-MiniLM-L6-v2"):
         self.persist_directory = persist_directory
-        self.client = chromadb.Client(Settings(
-            persist_directory=persist_directory,
-            anonymized_telemetry=False
-        ))
+        chroma_server = os.environ.get("CHROMA_SERVER", "false").lower() == "true"
+        if chroma_server:
+            # Use ChromaDB server (Docker Compose setup)
+            self.client = chromadb.HttpClient(host="chromadb", port=8000)
+        else:
+            # Use embedded/local ChromaDB (default for local dev)
+            self.client = chromadb.Client(Settings(
+                persist_directory=persist_directory,
+                anonymized_telemetry=False
+            ))
         self.embedding_model = embedding_model
         self.embedder = SentenceTransformer(embedding_model)
 
@@ -107,8 +115,34 @@ class VectorStore:
         ranked = sorted(semantic_results, key=lambda x: x['hybrid_score'], reverse=True)
         return ranked[:n_results]
 
-    def list_collections(self) -> List[str]:
-        return [col.name for col in self.client.list_collections()]
+    def _get_metadata_path(self, collection_name: str) -> str:
+        return os.path.join(self.persist_directory, f"{collection_name}_meta.json")
+
+    def save_metadata(self, collection_name: str, name: str, upload_time: str):
+        # Ensure the persist_directory exists
+        os.makedirs(self.persist_directory, exist_ok=True)
+        meta = {"document_id": collection_name, "name": name, "upload_time": upload_time}
+        path = self._get_metadata_path(collection_name)
+        with open(path, "w") as f:
+            json.dump(meta, f)
+
+    def load_metadata(self, collection_name: str) -> dict:
+        # Ensure the persist_directory exists
+        os.makedirs(self.persist_directory, exist_ok=True)
+        path = self._get_metadata_path(collection_name)
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                return json.load(f)
+        # fallback: just id
+        return {"document_id": collection_name, "name": collection_name, "upload_time": ""}
+
+    def list_collections(self) -> list:
+        collections = self.client.list_collections()
+        result = []
+        for col in collections:
+            meta = self.load_metadata(col.name)
+            result.append(meta)
+        return result
 
     def delete_collection(self, name: str):
         self.client.delete_collection(name)

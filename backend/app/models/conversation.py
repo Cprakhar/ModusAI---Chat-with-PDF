@@ -183,3 +183,25 @@ class ConversationSession:
             c.execute('SELECT role, content, timestamp FROM messages WHERE session_id = ? ORDER BY id ASC', (session_id,))
             session.history = [Message(role, content, datetime.fromisoformat(ts)) for role, content, ts in c.fetchall()]
             return session
+
+    @staticmethod
+    def find_by_document_and_user(document_id: str, user_id: str, user_token: str) -> Optional['ConversationSession']:
+        """
+        Find a conversation session for a given document and user.
+        Returns the ConversationSession if found, else None.
+        """
+        if not user_token:
+            raise PermissionError("Missing authentication token.")
+        token_user_id = verify_user_jwt(user_token)
+        if not token_user_id or str(token_user_id) != str(user_id):
+            raise PermissionError(f"Authentication failed for user_id: {user_id}")
+        ConversationSession._init_db()
+        db_path = ConversationSession._get_db_path()
+        with sqlite3.connect(db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT session_id FROM sessions WHERE document_id = ? AND user_id = ? ORDER BY updated_at DESC LIMIT 1''', (document_id, user_id))
+            row = c.fetchone()
+            if not row:
+                return None
+            session_id = row[0]
+            return ConversationSession.load(session_id, user_token=user_token)

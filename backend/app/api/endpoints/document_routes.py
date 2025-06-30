@@ -1,9 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 import uuid
 import logging
+import datetime
 from app.services.pdf_processor import PDFTextExtractor
 from app.services.vector_store import VectorStore
-from app.models import DocumentUploadResponse, DocumentListResponse, DocumentDeleteResponse, ErrorResponse
+from app.models.document import DocumentUploadResponse, DocumentListResponse, DocumentDeleteResponse, ErrorResponse, DocumentInfo
 from app.utils.deps import get_current_user
 from app.models.conversation import ConversationSession
 
@@ -40,6 +41,9 @@ def upload_document(
         metadata = doc_data["metadata"]
         doc_chunks = doc_data["pages"]
         collection_name = metadata.get("document_id", file_id)
+        # Save metadata for collection
+        upload_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        vector_store.save_metadata(collection_name, name=file.filename, upload_time=upload_time)
         vector_store.add_chunks(collection_name, doc_chunks)
         # Create a new conversation session for this document and user
         user_id = user["payload"].get("user_id")
@@ -57,9 +61,19 @@ def list_documents(
     user: dict = Depends(get_current_user)
 ):
     try:
-        docs = vector_store.list_collections()
+        # Example: vector_store.list_collections() returns list of dicts with id, name, upload_time
+        docs = vector_store.list_collections()  # Should return [{"document_id": ..., "name": ..., "upload_time": ...}, ...]
         logger.info(f"Listed documents: {docs}")
-        return {"documents": docs}
+        # If docs are just IDs, you need to fetch metadata for each document here
+        document_infos = []
+        for doc in docs:
+            # If doc is a dict with metadata, use as is. Otherwise, fetch metadata.
+            if isinstance(doc, dict) and "document_id" in doc and "name" in doc and "upload_time" in doc:
+                document_infos.append(DocumentInfo(**doc))
+            else:
+                # Fallback: just use ID, fill with placeholders
+                document_infos.append(DocumentInfo(document_id=doc, name=doc, upload_time=""))
+        return {"documents": document_infos}
     except Exception as e:
         logger.error(f"Error listing documents: {e}")
         raise HTTPException(status_code=500, detail=str(e))
